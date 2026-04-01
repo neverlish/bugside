@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from "react";
-import { Box, Text, useInput, useApp } from "ink";
+import React from "react";
+import { Box, Text, useInput, useApp, useStdin } from "ink";
 import { BugError, ProjectConfig } from "../types.js";
 import { ErrorCard } from "./ErrorCard.js";
 
@@ -9,13 +9,17 @@ interface Props {
   onClear: () => void;
 }
 
-export function App({ config, errors, onClear }: Props) {
+function KeyboardHandler({ onClear }: { onClear: () => void }) {
   const { exit } = useApp();
-
   useInput((input) => {
     if (input === "q") exit();
     if (input === "c") onClear();
   });
+  return null;
+}
+
+export function App({ config, errors, onClear }: Props) {
+  const { isRawModeSupported } = useStdin();
 
   const unresolvedCount = errors.filter((e) => !e.resolved).length;
 
@@ -27,12 +31,13 @@ export function App({ config, errors, onClear }: Props) {
 
   return (
     <Box flexDirection="column" padding={1}>
+      {isRawModeSupported && <KeyboardHandler onClear={onClear} />}
       {/* 헤더 */}
       <Box marginBottom={1} gap={2}>
         <Text bold>bugside</Text>
         <Text dimColor>watching: {sources.join(" · ")}</Text>
         <Text dimColor>│</Text>
-        <Text dimColor>q quit  c clear</Text>
+        {isRawModeSupported && <Text dimColor>q quit  c clear</Text>}
       </Box>
 
       {/* 에러 목록 */}

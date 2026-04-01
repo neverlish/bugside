@@ -45,6 +45,14 @@ export function startSupabaseProxy(
     proxy.web(req, res);
   });
 
+  server.on("error", (err: NodeJS.ErrnoException) => {
+    if (err.code === "EADDRINUSE") {
+      console.error(`[bugside] Port ${PROXY_PORT} already in use — Supabase proxy skipped`);
+    } else {
+      console.error(`[bugside] Proxy server error: ${err.message}`);
+    }
+  });
+
   server.listen(PROXY_PORT);
 
   return {
