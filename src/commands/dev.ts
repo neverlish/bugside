@@ -54,11 +54,11 @@ export async function runDev({ port }: DevOptions) {
 
   // 브라우저 에러 수신 서버
   startCollector(pushError, () => {
-    // 페이지 로드 → 브라우저 에러 클리어
-    if (errors.some((e) => e.source === "nextjs" && e.detail?.includes("browser"))) {
-      errors.splice(0, errors.length, ...errors.filter(
-        (e) => !(e.source === "nextjs" && e.detail?.includes("browser"))
-      ));
+    // 페이지 로드 → 브라우저/Supabase 에러 클리어
+    const isBrowserError = (e: BugError) =>
+      (e.source === "nextjs" && e.detail?.includes("browser")) || e.source === "supabase";
+    if (errors.some(isBrowserError)) {
+      errors.splice(0, errors.length, ...errors.filter((e) => !isBrowserError(e)));
       rerender_();
     }
   });
