@@ -4,10 +4,8 @@ import httpProxy from "http-proxy";
 const BROWSER_PROXY_PORT = 3001;
 const COLLECTOR_PORT = 54321;
 
-// 브라우저에 주입할 에러 리포터 스크립트
 function injectedScript(): string {
-  return `
-<script data-bugside>
+  return `<script data-bugside>
 (function() {
   var COLLECTOR = 'http://localhost:${COLLECTOR_PORT}';
   function send(type, message, source, lineno, colno, stack) {
@@ -15,78 +13,81 @@ function injectedScript(): string {
       fetch(COLLECTOR, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type, message, source, lineno, colno, stack })
+        body: JSON.stringify({ type: type, message: message, source: source, lineno: lineno, colno: colno, stack: stack })
       }).catch(function(){});
     } catch(e) {}
   }
-
-  // console.error / console.warn 인터셉트
   var _error = console.error.bind(console);
   var _warn = console.warn.bind(console);
-  console.error = function() {
-    _error.apply(console, arguments);
-    send('error', Array.from(arguments).map(String).join(' '));
-  };
-  console.warn = function() {
-    _warn.apply(console, arguments);
-    send('warn', Array.from(arguments).map(String).join(' '));
-  };
-
-  // 언핸들드 JS 에러
-  window.addEventListener('error', function(e) {
-    send('error', e.message, e.filename, e.lineno, e.colno, e.error && e.error.stack);
-  });
-
-  // 언핸들드 Promise rejection
-  window.addEventListener('unhandledrejection', function(e) {
-    var msg = e.reason instanceof Error ? e.reason.message : String(e.reason);
-    send('unhandledrejection', 'Unhandled Promise rejection: ' + msg);
-  });
+  console.error = function() { _error.apply(console, arguments); send('error', Array.from(arguments).map(String).join(' ')); };
+  console.warn = function() { _warn.apply(console, arguments); send('warn', Array.from(arguments).map(String).join(' ')); };
+  window.addEventListener('error', function(e) { send('error', e.message, e.filename, e.lineno, e.colno, e.error && e.error.stack); });
+  window.addEventListener('unhandledrejection', function(e) { send('unhandledrejection', 'Unhandled Promise: ' + (e.reason instanceof Error ? e.reason.message : String(e.reason))); });
 })();
 </script>`;
 }
 
 export function startBrowserProxy(nextPort: number): { port: number; stop: () => void } {
-  const proxy = httpProxy.createProxyServer({
+  // HTML 주입용 프록시 (selfHandleResponse)
+  const htmlProxy = httpProxy.createProxyServer({
     target: `http://localhost:${nextPort}`,
     selfHandleResponse: true,
   });
 
-  proxy.on("proxyRes", (proxyRes, _req, res) => {
-    const serverRes = res as http.ServerResponse;
-    const contentType = proxyRes.headers["content-type"] ?? "";
-    const isHtml = contentType.includes("text/html");
+  // 일반 요청용 프록시 (pass-through)
+  const passProxy = httpProxy.createProxyServer({
+    target: `http://localhost:${nextPort}`,
+  });
 
+  htmlProxy.on("proxyRes", (proxyRes, _req, res) => {
+    const serverRes = res as http.ServerResponse;
     const chunks: Buffer[] = [];
+
     proxyRes.on("data", (chunk: Buffer) => chunks.push(chunk));
     proxyRes.on("end", () => {
-      let body = Buffer.concat(chunks).toString("utf-8");
+      const buf = Buffer.concat(chunks);
+      let body = buf.toString("utf-8");
 
-      if (isHtml) {
-        // <head> 바로 뒤에 스크립트 주입
-        body = body.replace("<head>", "<head>" + injectedScript());
-        // content-length 제거 (body 길이 바뀌므로)
-        const headers = { ...proxyRes.headers };
-        delete headers["content-length"];
-        serverRes.writeHead(proxyRes.statusCode ?? 200, headers);
-      } else {
-        serverRes.writeHead(proxyRes.statusCode ?? 200, proxyRes.headers);
-      }
+      // <head> 바로 뒤에 스크립트 주입
+      body = body.replace("<head>", "<head>" + injectedScript());
 
+      const headers = { ...proxyRes.headers };
+      delete headers["content-length"];
+      serverRes.writeHead(proxyRes.statusCode ?? 200, headers);
       serverRes.end(body);
     });
   });
 
-  proxy.on("error", (_err, _req, res) => {
+  htmlProxy.on("error", (_err, _req, res) => {
     const serverRes = res as http.ServerResponse;
     if (!serverRes.headersSent) {
       serverRes.writeHead(502);
-      serverRes.end("Bugside browser proxy error");
+      serverRes.end("Bugside: Next.js not ready yet");
+    }
+  });
+
+  passProxy.on("error", (_err, _req, res) => {
+    const serverRes = res as http.ServerResponse;
+    if (!serverRes.headersSent) {
+      serverRes.writeHead(502);
+      serverRes.end();
     }
   });
 
   const server = http.createServer((req, res) => {
-    proxy.web(req, res);
+    const contentType = req.headers["accept"] ?? "";
+    const isHtmlRequest = contentType.includes("text/html");
+
+    if (isHtmlRequest) {
+      htmlProxy.web(req, res);
+    } else {
+      passProxy.web(req, res);
+    }
+  });
+
+  // WebSocket 업그레이드 (Next.js HMR)
+  server.on("upgrade", (req, socket, head) => {
+    passProxy.ws(req, socket, head);
   });
 
   server.on("error", (err: NodeJS.ErrnoException) => {
@@ -101,7 +102,8 @@ export function startBrowserProxy(nextPort: number): { port: number; stop: () =>
     port: BROWSER_PROXY_PORT,
     stop: () => {
       server.close();
-      proxy.close();
+      htmlProxy.close();
+      passProxy.close();
     },
   };
 }
