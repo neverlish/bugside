@@ -5,6 +5,8 @@ import { detectProject } from "../detect.js";
 import { parseNextjsLine } from "../parsers/nextjs.js";
 import { parseVercelLine } from "../parsers/vercel.js";
 import { startSupabaseProxy } from "../proxy.js";
+import { startBrowserProxy } from "../browser-proxy.js";
+import { startCollector } from "../collector.js";
 import { App } from "../ui/App.js";
 import { BugError } from "../types.js";
 
@@ -41,6 +43,14 @@ export async function runDev({ port }: DevOptions) {
         },
       })
     );
+  }
+
+  // 브라우저 에러 수신 서버 (항상 시작)
+  startCollector(pushError);
+
+  // 브라우저 프록시 (HTML에 스크립트 주입, :3001 → :port)
+  if (config.hasNextjs) {
+    startBrowserProxy(port);
   }
 
   // Next.js dev server spawn
