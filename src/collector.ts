@@ -5,7 +5,7 @@ import { randomId } from "./utils.js";
 const COLLECTOR_PORT = 54321;
 
 interface BrowserErrorPayload {
-  type: "error" | "warn" | "unhandledrejection" | "page-load";
+  type: "error" | "warn" | "unhandledrejection" | "page-load" | "supabase-error";
   message: string;
   source?: string;
   lineno?: number;
@@ -66,14 +66,23 @@ export function startCollector(
 }
 
 function parseBrowserError(payload: BrowserErrorPayload): BugError | null {
-  const { type, message, source, lineno } = payload;
+  const { type, message, source, lineno, stack } = payload;
 
   if (!message) return null;
 
-  // React key prop 경고 등 무시하고 싶으면 여기서 필터
-  const isWarn = type === "warn";
+  // Supabase fetch 인터셉터에서 온 에러
+  if (type === "supabase-error") {
+    return {
+      id: randomId(),
+      source: "supabase",
+      timestamp: new Date(),
+      message: message.slice(0, 200),
+      detail: stack ? stack.slice(0, 150) : undefined,
+      resolved: false,
+    };
+  }
 
-  // 파일 경로 추출 (source는 full URL일 수 있음)
+  const isWarn = type === "warn";
   const file = source
     ? source.replace(/^https?:\/\/[^/]+/, "").replace(/\?.*$/, "")
     : undefined;

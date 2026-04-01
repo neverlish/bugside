@@ -24,6 +24,27 @@ function injectedScript(): string {
   console.warn = function() { _warn.apply(console, arguments); send('warn', Array.from(arguments).map(String).join(' ')); };
   window.addEventListener('error', function(e) { send('error', e.message, e.filename, e.lineno, e.colno, e.error && e.error.stack); });
   window.addEventListener('unhandledrejection', function(e) { send('unhandledrejection', 'Unhandled Promise: ' + (e.reason instanceof Error ? e.reason.message : String(e.reason))); });
+
+  // Supabase fetch 인터셉터
+  var _fetch = window.fetch.bind(window);
+  window.fetch = function(input, init) {
+    var url = typeof input === 'string' ? input : (input instanceof Request ? input.url : String(input));
+    return _fetch(input, init).then(function(res) {
+      if (url.includes('/rest/v1/') && res.status >= 400) {
+        res.clone().text().then(function(body) {
+          var path = url.replace(/^https?:\/\/[^/]+/, '').split('?')[0];
+          var detail = '';
+          try {
+            var j = JSON.parse(body);
+            detail = j.hint || j.message || j.error_description || body.slice(0, 100);
+          } catch(e) { detail = body.slice(0, 100); }
+          send('supabase-error', res.status + ' ' + path, undefined, undefined, undefined, detail);
+        });
+      }
+      return res;
+    });
+  };
+
   // 페이지 로드 시 브라우저 에러 클리어 신호
   send('page-load', '__clear__');
 })();
