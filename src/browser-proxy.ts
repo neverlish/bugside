@@ -24,6 +24,8 @@ function injectedScript(): string {
   console.warn = function() { _warn.apply(console, arguments); send('warn', Array.from(arguments).map(String).join(' ')); };
   window.addEventListener('error', function(e) { send('error', e.message, e.filename, e.lineno, e.colno, e.error && e.error.stack); });
   window.addEventListener('unhandledrejection', function(e) { send('unhandledrejection', 'Unhandled Promise: ' + (e.reason instanceof Error ? e.reason.message : String(e.reason))); });
+  // 페이지 로드 시 브라우저 에러 클리어 신호
+  send('page-load', '__clear__');
 })();
 </script>`;
 }

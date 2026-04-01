@@ -5,7 +5,7 @@ import { randomId } from "./utils.js";
 const COLLECTOR_PORT = 54321;
 
 interface BrowserErrorPayload {
-  type: "error" | "warn" | "unhandledrejection";
+  type: "error" | "warn" | "unhandledrejection" | "page-load";
   message: string;
   source?: string;
   lineno?: number;
@@ -14,7 +14,8 @@ interface BrowserErrorPayload {
 }
 
 export function startCollector(
-  onError: (err: BugError) => void
+  onError: (err: BugError) => void,
+  onPageLoad?: () => void
 ): { stop: () => void } {
   const server = http.createServer((req, res) => {
     // CORS — next dev와 같은 origin이 아니므로 필요
@@ -39,8 +40,12 @@ export function startCollector(
     req.on("end", () => {
       try {
         const payload: BrowserErrorPayload = JSON.parse(body);
-        const err = parseBrowserError(payload);
-        if (err) onError(err);
+        if (payload.type === "page-load") {
+          onPageLoad?.();
+        } else {
+          const err = parseBrowserError(payload);
+          if (err) onError(err);
+        }
       } catch {
         // 파싱 실패 무시
       }
