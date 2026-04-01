@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bugside — See Your Next.js · Supabase · Vercel Errors in One Place</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0d0d0f;
+      --surface: #141416;
+      --surface2: #1c1c1f;
+      --border: #2a2a2f;
+      --text: #e8e8ec;
+      --muted: #6b6b78;
+      --accent: #7c6af7;
+      --accent-glow: rgba(124, 106, 247, 0.18);
+      --green: #3dd68c;
+      --red: #f87171;
+      --yellow: #fbbf24;
+      --blue: #60a5fa;
+      --orange: #fb923c;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    nav {
+      position: fixed; top: 0; width: 100%; z-index: 100;
+      padding: 18px 40px;
+      display: flex; align-items: center; justify-content: space-between;
+      background: rgba(13, 13, 15, 0.85);
+      backdrop-filter: blur(14px);
+      border-bottom: 1px solid var(--border);
+    }
+    .logo { font-size: 18px; font-weight: 700; letter-spacing: -0.4px; }
+    .logo span { color: var(--accent); }
+    .nav-stack { display: flex; gap: 6px; align-items: center; }
+    .stack-tag {
+      font-size: 11px; font-weight: 600;
+      padding: 3px 9px; border-radius: 5px;
+      border: 1px solid var(--border); color: var(--muted);
+    }
+    .nav-right { display: flex; align-items: center; gap: 16px; }
+    .nav-cta {
+      background: var(--accent); color: #fff; border: none;
+      padding: 8px 20px; border-radius: 8px;
+      font-size: 14px; font-weight: 600; cursor: pointer;
+      transition: opacity 0.15s;
+    }
+    .nav-cta:hover { opacity: 0.85; }
+
+    .section-inner { max-width: 960px; margin: 0 auto; padding: 100px 40px; }
+
+    .hero { padding-top: 160px; padding-bottom: 60px; text-align: center; }
+
+    .badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      background: var(--accent-glow);
+      border: 1px solid rgba(124, 106, 247, 0.35);
+      color: #a89ff8;
+      font-size: 12px; font-weight: 600; letter-spacing: 0.5px;
+      text-transform: uppercase; padding: 5px 14px;
+      border-radius: 100px; margin-bottom: 28px;
+    }
+    .badge::before { content: ""; width: 6px; height: 6px; background: var(--accent); border-radius: 50%; }
+
+    h1 {
+      font-size: clamp(34px, 5vw, 56px);
+      font-weight: 800; letter-spacing: -1.5px; line-height: 1.1;
+      margin-bottom: 20px;
+    }
+    h1 em { font-style: normal; color: var(--accent); }
+
+    .hero-sub {
+      font-size: 17px; color: var(--muted);
+      max-width: 520px; margin: 0 auto 16px; line-height: 1.7;
+    }
+
+    .stack-pills {
+      display: flex; gap: 8px; justify-content: center;
+      margin-bottom: 36px; flex-wrap: wrap;
+    }
+    .pill {
+      display: flex; align-items: center; gap: 5px;
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 100px; padding: 5px 14px;
+      font-size: 13px; font-weight: 600; color: var(--text);
+    }
+    .pill-dot { width: 7px; height: 7px; border-radius: 50%; }
+
+    .hero-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+    .btn-primary {
+      background: var(--accent); color: #fff; border: none;
+      padding: 14px 28px; border-radius: 10px;
+      font-size: 15px; font-weight: 700; cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); box-shadow: 0 8px 24px var(--accent-glow); }
+    .btn-ghost {
+      background: transparent; color: var(--muted);
+      border: 1px solid var(--border); padding: 14px 28px;
+      border-radius: 10px; font-size: 15px; font-weight: 600; cursor: pointer;
+      transition: all 0.15s;
+    }
+    .btn-ghost:hover { color: var(--text); border-color: #44444f; }
+
+    .demo-wrap { max-width: 920px; margin: 60px auto 0; }
+    .demo-grid { display: grid; grid-template-columns: 1fr 1.1fr; gap: 10px; }
+    .terminal {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 12px; overflow: hidden;
+      font-family: "SF Mono", "Fira Code", monospace; font-size: 12px;
+    }
+    .t-header {
+      display: flex; align-items: center; gap: 6px;
+      padding: 11px 14px; background: var(--surface2);
+      border-bottom: 1px solid var(--border);
+    }
+    .dot { width: 10px; height: 10px; border-radius: 50%; }
+    .dot-r { background: #ff5f57; } .dot-y { background: #febc2e; } .dot-g { background: #28c840; }
+    .t-title { margin-left: 6px; font-size: 11px; color: var(--muted); font-family: -apple-system, sans-serif; }
+    .t-body { padding: 14px; min-height: 280px; }
+
+    .ln { display: flex; gap: 8px; margin-bottom: 3px; line-height: 1.6; }
+    .c-green { color: var(--green); }
+    .c-muted { color: var(--muted); }
+    .c-text { color: var(--text); }
+    .blank { height: 6px; }
+
+    .err-block {
+      border-radius: 0 6px 6px 0;
+      padding: 9px 12px; margin: 6px 0;
+    }
+    .err-block.next { background: rgba(248,113,113,0.07); border-left: 2px solid var(--red); }
+    .err-block.supa { background: rgba(251,191,36,0.07); border-left: 2px solid var(--yellow); }
+    .err-block.ver  { background: rgba(96,165,250,0.07); border-left: 2px solid var(--blue); }
+
+    .err-source {
+      font-size: 10px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.8px; margin-bottom: 3px;
+    }
+    .err-block.next .err-source { color: var(--red); }
+    .err-block.supa .err-source { color: var(--yellow); }
+    .err-block.ver  .err-source { color: var(--blue); }
+    .err-msg { line-height: 1.55; }
+    .err-loc { color: var(--muted); margin-top: 2px; font-size: 11px; }
+
+    .panel-label { text-align: center; font-size: 11px; color: var(--muted); margin-top: 8px; font-family: -apple-system, sans-serif; }
+
+    .divider { border: none; border-top: 1px solid var(--border); max-width: 960px; margin: 0 auto; }
+
+    .section-label {
+      font-size: 11px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 1.2px; color: var(--accent); margin-bottom: 14px;
+    }
+    h2 {
+      font-size: clamp(24px, 3.5vw, 34px);
+      font-weight: 800; letter-spacing: -0.8px; line-height: 1.2; margin-bottom: 16px;
+    }
+    .section-sub { font-size: 16px; color: var(--muted); max-width: 520px; line-height: 1.7; }
+
+    .layers { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 44px; }
+    .layer-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 14px; padding: 24px; transition: border-color 0.2s;
+    }
+    .layer-icon { font-size: 22px; margin-bottom: 12px; }
+    .layer-card h3 { font-size: 16px; font-weight: 700; margin-bottom: 8px; }
+    .layer-card p { font-size: 13px; color: var(--muted); line-height: 1.6; }
+    .layer-tags { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 12px; }
+    .layer-tag {
+      font-size: 11px; padding: 2px 8px; border-radius: 4px;
+      font-family: "SF Mono", monospace; font-weight: 600;
+    }
+    .tag-red { background: rgba(248,113,113,0.12); color: var(--red); }
+    .tag-yellow { background: rgba(251,191,36,0.12); color: var(--yellow); }
+    .tag-blue { background: rgba(96,165,250,0.12); color: var(--blue); }
+
+    .problem-flow {
+      display: flex; align-items: center; gap: 0;
+      margin: 44px 0; flex-wrap: wrap; justify-content: center;
+    }
+    .flow-step { text-align: center; padding: 16px 14px; flex: 1; min-width: 100px; }
+    .flow-icon { font-size: 26px; margin-bottom: 8px; display: block; }
+    .flow-label { font-size: 12px; color: var(--muted); line-height: 1.4; }
+    .flow-arrow { color: var(--border); font-size: 18px; flex-shrink: 0; }
+
+    .pain-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 12px; }
+    .pain-card {
+      background: var(--surface); border-radius: 10px; padding: 16px;
+      font-size: 13px; color: var(--muted); line-height: 1.6;
+      border-left: 3px solid var(--border);
+    }
+    .pain-card.next { border-color: var(--red); }
+    .pain-card.supa { border-color: var(--yellow); }
+    .pain-card.ver  { border-color: var(--blue); }
+    .pain-card strong { display: block; margin-bottom: 4px; font-size: 12px; font-weight: 700; }
+    .pain-card.next strong { color: var(--red); }
+    .pain-card.supa strong { color: var(--yellow); }
+    .pain-card.ver  strong { color: var(--blue); }
+
+    .steps { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-top: 44px; }
+    .step-card {
+      background: var(--surface); border: 1px solid var(--border);
+      border-radius: 14px; padding: 26px 22px; transition: border-color 0.2s;
+    }
+    .step-card:hover { border-color: var(--accent); }
+    .step-number {
+      width: 30px; height: 30px;
+      background: var(--accent-glow); border: 1px solid rgba(124,106,247,0.3);
+      border-radius: 8px; display: flex; align-items: center; justify-content: center;
+      font-size: 13px; font-weight: 800; color: var(--accent); margin-bottom: 14px;
+    }
+    .step-card h3 { font-size: 15px; font-weight: 700; margin-bottom: 8px; letter-spacing: -0.3px; }
+    .step-card p { font-size: 13px; color: var(--muted); line-height: 1.6; }
+    .step-card code {
+      display: inline-block; background: var(--surface2);
+      border: 1px solid var(--border); border-radius: 6px;
+      padding: 2px 8px; font-family: "SF Mono", monospace;
+      font-size: 12px; color: var(--green); margin-top: 8px;
+    }
+
+    .cta-box {
+      background: linear-gradient(135deg, rgba(124,106,247,0.12), rgba(124,106,247,0.04));
+      border: 1px solid rgba(124,106,247,0.3);
+      border-radius: 20px; padding: 60px 40px; text-align: center;
+    }
+    .cta-box h2 { margin-bottom: 10px; }
+    .cta-box p { color: var(--muted); font-size: 15px; margin-bottom: 32px; }
+    .email-form { display: flex; gap: 10px; max-width: 400px; margin: 0 auto; }
+    .email-input {
+      flex: 1; background: var(--surface); border: 1px solid var(--border);
+      border-radius: 10px; padding: 12px 16px;
+      font-size: 14px; color: var(--text); outline: none;
+      transition: border-color 0.15s;
+    }
+    .email-input::placeholder { color: var(--muted); }
+    .email-input:focus { border-color: var(--accent); }
+    .email-note { margin-top: 12px; font-size: 12px; color: var(--muted); }
+
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 26px 40px;
+      display: flex; align-items: center; justify-content: space-between;
+      max-width: 960px; margin: 0 auto;
+    }
+    .footer-logo { font-size: 15px; font-weight: 700; }
+    .footer-logo span { color: var(--accent); }
+    footer p { font-size: 13px; color: var(--muted); }
+
+    @media (max-width: 700px) {
+      nav { padding: 14px 20px; }
+      .nav-stack { display: none; }
+      .section-inner { padding: 70px 20px; }
+      .hero { padding-top: 130px; }
+      .demo-grid { grid-template-columns: 1fr; }
+      .layers, .steps, .pain-grid { grid-template-columns: 1fr; }
+      .problem-flow .flow-arrow { display: none; }
+      .email-form { flex-direction: column; }
+      footer { flex-direction: column; gap: 8px; text-align: center; }
+    }
+  </style>
+</head>
+<body>
+
+<nav>
+  <div class="logo">bug<span>side</span></div>
+  <div class="nav-stack">
+    <div class="stack-tag">Next.js</div>
+    <div class="stack-tag">Supabase</div>
+    <div class="stack-tag">Vercel</div>
+  </div>
+  <div class="nav-right">
+    <button class="nav-cta" onclick="document.getElementById('cta').scrollIntoView({behavior:'smooth'})">Join Beta</button>
+  </div>
+</nav>
+
+<!-- HERO -->
+<div class="section-inner hero">
+  <div class="badge">Built for Claude Code developers</div>
+  <h1>Three stacks.<br><em>One error pane.</em></h1>
+  <p class="hero-sub">
+    Next.js · Supabase · Vercel errors — all streaming live in a terminal panel right next to Claude Code.
+    Stop context-switching. Stop copy-pasting error messages.
+  </p>
+  <div class="stack-pills">
+    <div class="pill"><div class="pill-dot" style="background:var(--red)"></div>Next.js</div>
+    <div class="pill"><div class="pill-dot" style="background:var(--yellow)"></div>Supabase</div>
+    <div class="pill"><div class="pill-dot" style="background:var(--blue)"></div>Vercel</div>
+  </div>
+  <div class="hero-actions">
+    <button class="btn-primary" onclick="document.getElementById('cta').scrollIntoView({behavior:'smooth'})">Join the Beta</button>
+    <button class="btn-ghost" onclick="document.getElementById('how').scrollIntoView({behavior:'smooth'})">How it works</button>
+  </div>
+
+  <div class="demo-wrap">
+    <div class="demo-grid">
+
+      <div>
+        <div class="terminal">
+          <div class="t-header">
+            <div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div>
+            <span class="t-title">claude — ~/my-app</span>
+          </div>
+          <div class="t-body">
+            <div class="ln"><span class="c-green">></span><span class="c-text">fetch boards list from supabase</span></div>
+            <div class="blank"></div>
+            <div class="ln"><span class="c-muted">⠸ Writing code...</span></div>
+            <div class="blank"></div>
+            <div class="ln"><span class="c-muted">● app/boards/page.tsx updated</span></div>
+            <div class="ln"><span class="c-muted">● lib/supabase.ts updated</span></div>
+            <div class="blank"></div>
+            <div class="ln"><span class="c-green">></span><span class="c-text">deploy to vercel</span></div>
+            <div class="blank"></div>
+            <div class="ln"><span class="c-muted">⠸ Deploying...</span></div>
+            <div class="blank"></div>
+            <div class="ln"><span class="c-green">></span><span class="c-muted" style="opacity:0.4">|</span></div>
+          </div>
+        </div>
+        <p class="panel-label">Claude Code</p>
+      </div>
+
+      <div>
+        <div class="terminal">
+          <div class="t-header">
+            <div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div>
+            <span class="t-title">bugside — 3 sources watching</span>
+          </div>
+          <div class="t-body">
+            <div class="ln"><span class="c-green">✓</span><span class="c-muted">Next.js :3000  Supabase  Vercel</span></div>
+            <div class="blank"></div>
+
+            <div class="err-block supa">
+              <div class="err-source">Supabase  13:42:08</div>
+              <div class="err-msg c-text">POST /rest/v1/boards?select=*</div>
+              <div class="err-msg" style="color:#fcd34d">401 Unauthorized — no RLS policy found</div>
+              <div class="err-loc">→ lib/supabase.ts:18</div>
+            </div>
+
+            <div class="err-block next">
+              <div class="err-source">Next.js  13:42:09</div>
+              <div class="err-msg c-text">params.id accessed directly</div>
+              <div class="err-msg" style="color:#fca5a5">params is a Promise — use React.use()</div>
+              <div class="err-loc">→ app/boards/[id]/page.tsx:12</div>
+            </div>
+
+            <div class="err-block ver">
+              <div class="err-source">Vercel  13:44:31</div>
+              <div class="err-msg c-text">Build failed — 2 errors</div>
+              <div class="err-msg" style="color:#93c5fd">Type 'string | undefined' not assignable</div>
+              <div class="err-loc">→ components/BoardCard.tsx:34</div>
+            </div>
+
+            <div class="blank"></div>
+            <div class="ln"><span class="c-muted">──── 3 errors  0 resolved ────</span></div>
+          </div>
+        </div>
+        <p class="panel-label">Bugside</p>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<hr class="divider" />
+
+<!-- STACK LAYERS -->
+<div class="section-inner">
+  <div class="section-label">The Problem</div>
+  <h2>Your errors come from<br>three different places</h2>
+  <p class="section-sub">Next.js, Supabase, and Vercel each fail in their own way — and each one lives in a different tab, dashboard, or log stream.</p>
+
+  <div class="layers">
+    <div class="layer-card">
+      <div class="layer-icon">⚛️</div>
+      <h3>Next.js</h3>
+      <p>Runtime errors, hydration mismatches, App Router params changes, and TypeScript failures during build.</p>
+      <div class="layer-tags">
+        <span class="layer-tag tag-red">Hydration</span>
+        <span class="layer-tag tag-red">params</span>
+        <span class="layer-tag tag-red">Runtime</span>
+      </div>
+    </div>
+    <div class="layer-card">
+      <div class="layer-icon">🗄️</div>
+      <h3>Supabase</h3>
+      <p>Missing RLS policies, 401/406 API errors, relation not found, permission denied — all look the same from the outside.</p>
+      <div class="layer-tags">
+        <span class="layer-tag tag-yellow">401</span>
+        <span class="layer-tag tag-yellow">406</span>
+        <span class="layer-tag tag-yellow">RLS</span>
+      </div>
+    </div>
+    <div class="layer-card">
+      <div class="layer-icon">▲</div>
+      <h3>Vercel</h3>
+      <p>Build failures, serverless function timeouts, missing env vars, deploy errors that don't reproduce locally.</p>
+      <div class="layer-tags">
+        <span class="layer-tag tag-blue">Build</span>
+        <span class="layer-tag tag-blue">Timeout</span>
+        <span class="layer-tag tag-blue">Env</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<hr class="divider" />
+
+<!-- PROBLEM FLOW -->
+<div class="section-inner">
+  <div class="section-label">Current Workflow</div>
+  <h2>How many context switches<br>does one error cost you?</h2>
+
+  <div class="problem-flow">
+    <div class="flow-step"><span class="flow-icon">💥</span><div class="flow-label">Error occurs</div></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step"><span class="flow-icon">🔀</span><div class="flow-label">Figure out which<br>layer it's from</div></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step"><span class="flow-icon">🖥</span><div class="flow-label">Open browser /<br>dashboard</div></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step"><span class="flow-icon">📋</span><div class="flow-label">Copy the<br>message</div></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step"><span class="flow-icon">💬</span><div class="flow-label">Paste into<br>Claude Code</div></div>
+    <div class="flow-arrow">→</div>
+    <div class="flow-step"><span class="flow-icon">🔁</span><div class="flow-label">Repeat</div></div>
+  </div>
+
+  <div class="pain-grid">
+    <div class="pain-card next">
+      <strong>Next.js</strong>
+      You have to open the browser console, then dig through a wall of stack trace to find the one line that matters.
+    </div>
+    <div class="pain-card supa">
+      <strong>Supabase</strong>
+      A 401 or 406 tells you nothing without context. Is it RLS? Wrong key? Anonymous access? You have to guess.
+    </div>
+    <div class="pain-card ver">
+      <strong>Vercel</strong>
+      Build failures live in a dashboard you have to open, scroll, and parse — and they often can't be reproduced locally.
+    </div>
+  </div>
+</div>
+
+<hr class="divider" />
+
+<!-- HOW IT WORKS -->
+<div class="section-inner" id="how">
+  <div class="section-label">The Fix</div>
+  <h2>One terminal pane.<br>All three error streams.</h2>
+  <p class="section-sub">Run Bugside in a split pane next to Claude Code. Errors from all three sources show up the moment they happen — formatted, labeled, and ready.</p>
+
+  <div class="steps">
+    <div class="step-card">
+      <div class="step-number">1</div>
+      <h3>Open a split pane</h3>
+      <p>Run Bugside in a terminal panel next to Claude Code. Zero config — it auto-detects your project setup.</p>
+      <code>npx bugside</code>
+    </div>
+    <div class="step-card">
+      <div class="step-number">2</div>
+      <h3>All three sources connect</h3>
+      <p>Next.js dev server, Supabase API responses, and Vercel CLI output are monitored simultaneously.</p>
+    </div>
+    <div class="step-card">
+      <div class="step-number">3</div>
+      <h3>Just glance left</h3>
+      <p>Errors appear instantly with source, cause, and file location. No browser tabs. No copy-paste.</p>
+    </div>
+  </div>
+</div>
+
+<hr class="divider" />
+
+<!-- CTA -->
+<div class="section-inner" id="cta">
+  <div class="cta-box">
+    <h2>Get early access</h2>
+    <p>Built for developers using Next.js + Supabase + Vercel with Claude Code. Free during beta.</p>
+    <form class="email-form" onsubmit="handleSubmit(event)">
+      <input type="email" class="email-input" placeholder="your@email.com" required id="emailInput" />
+      <button type="submit" class="btn-primary">Join Beta</button>
+    </form>
+    <p class="email-note" id="formNote">No spam. One email when we launch.</p>
+  </div>
+</div>
+
+<footer>
+  <div class="footer-logo">bug<span>side</span></div>
+  <p>Next.js · Supabase · Vercel errors in one place</p>
+</footer>
+
+<script>
+  function handleSubmit(e) {
+    e.preventDefault();
+    const email = document.getElementById('emailInput').value;
+    const note = document.getElementById('formNote');
+    const btn = e.target.querySelector('button');
+    btn.textContent = 'Done!';
+    btn.style.background = 'var(--green)';
+    btn.disabled = true;
+    document.getElementById('emailInput').disabled = true;
+    note.textContent = "You're on the list — we'll reach out when beta opens.";
+    note.style.color = 'var(--green)';
+  }
+</script>
+
+</body>
+</html>
