@@ -1,4 +1,5 @@
 import http from "http";
+import net from "net";
 import httpProxy from "http-proxy";
 
 const BROWSER_PROXY_PORT = 3001;
@@ -67,10 +68,15 @@ export function startBrowserProxy(nextPort: number): { port: number; stop: () =>
   });
 
   passProxy.on("error", (_err, _req, res) => {
-    const serverRes = res as http.ServerResponse;
-    if (!serverRes.headersSent) {
-      serverRes.writeHead(502);
-      serverRes.end();
+    // WebSocket 에러 시 res는 Socket, HTTP 에러 시 ServerResponse
+    if (typeof (res as http.ServerResponse).writeHead === "function") {
+      const serverRes = res as http.ServerResponse;
+      if (!serverRes.headersSent) {
+        serverRes.writeHead(502);
+        serverRes.end();
+      }
+    } else {
+      (res as unknown as net.Socket).destroy();
     }
   });
 
