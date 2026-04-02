@@ -1,56 +1,45 @@
 import { BugError } from "../types.js";
 import { randomId } from "../utils.js";
 
-// Next.js 컴파일 성공 감지 — true면 해당 source 에러 전부 제거
+// Next.js log prefixes (from next/dist/esm/build/output/log.js):
+//   error  → ⨯  (red bold)
+//   warn   → ⚠  (yellow bold)
+//   event  → ✓  (green bold)  ← compile success, ready
+//   ready  → ▲
+
+// 컴파일 성공 감지: ✓ 심볼 or 텍스트 fallback
 export function isNextjsCompileSuccess(line: string): boolean {
-  return (
-    line.includes("✓ Compiled") ||
-    line.includes("✓ Ready") ||
-    line.includes("compiled successfully") ||
-    // Turbopack
-    (line.includes("Compiled") && line.includes(" in "))
-  );
+  // ✓ Compiled in Xms (Turbopack), ✓ Compiled successfully in Xms (Webpack), ✓ Ready in Xms
+  if (line.startsWith("✓ ") && (line.includes("Compiled") || line.includes("Ready"))) {
+    return true;
+  }
+  // ANSI 미제거 환경 또는 구버전 fallback
+  return line.includes("compiled successfully") || line.includes("Compiled successfully");
 }
 
 // Next.js dev server stdout 라인을 파싱해서 에러 반환
-// 에러가 아니면 null
 export function parseNextjsLine(line: string): BugError | null {
-  // 빌드 에러: "Type error:" or "./src/..." with error
-  if (line.includes("Type error:") || line.includes("SyntaxError:")) {
-    return makeError("nextjs", line, extractFileRef(line));
+  // ⨯ 심볼로 시작하는 Next.js 에러 (런타임 에러, 빌드 에러 모두)
+  if (line.startsWith("⨯ ")) {
+    const msg = line.slice(2).trim();
+    return makeError("nextjs", msg, undefined, extractFileRef(msg));
   }
 
-  // App Router params 경고
-  if (line.includes("params") && line.includes("Promise")) {
-    return makeError(
-      "nextjs",
-      "params is a Promise — use React.use(params) or await params",
-      "App Router params API changed in Next.js 15+",
-      extractFileRef(line)
-    );
+  // ⚠ 심볼: 중요 경고만 포착 (params Promise, hydration)
+  if (line.startsWith("⚠ ")) {
+    const msg = line.slice(2).trim();
+    if (msg.includes("params") && msg.includes("Promise")) {
+      return makeError("nextjs", "params is a Promise — use React.use(params) or await params", msg);
+    }
+    if (msg.toLowerCase().includes("hydration")) {
+      return makeError("nextjs", "Hydration mismatch", msg);
+    }
+    return null;
   }
 
-  // 하이드레이션 에러
-  if (
-    line.toLowerCase().includes("hydration") &&
-    (line.toLowerCase().includes("error") || line.toLowerCase().includes("mismatch"))
-  ) {
-    return makeError("nextjs", "Hydration mismatch", line, extractFileRef(line));
-  }
-
-  // 순수 런타임 에러 (⨯ 없는 경우만 — ⨯는 vercel.ts에서 처리)
-  if (/^\s*(Error|TypeError|ReferenceError|RangeError):/.test(line)) {
+  // 심볼 없는 빌드 에러 (Type error, Failed to compile — console.error로 직접 출력)
+  if (line.includes("Type error:") || line.includes("Failed to compile")) {
     return makeError("nextjs", line.trim(), undefined, extractFileRef(line));
-  }
-
-  // 빌드 실패
-  if (line.includes("Failed to compile") || line.includes("Build error occurred")) {
-    return makeError("nextjs", line.trim());
-  }
-
-  // Unhandled runtime error
-  if (line.includes("Unhandled Runtime Error")) {
-    return makeError("nextjs", line.trim());
   }
 
   return null;
