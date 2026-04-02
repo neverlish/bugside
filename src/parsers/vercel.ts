@@ -41,9 +41,16 @@ export function parseVercelLine(line: string): BugError | null {
     return makeError("Function timeout", line.trim());
   }
 
-  // vercel dev 런타임 에러
-  if (line.startsWith("Error:") || line.startsWith("  Error:")) {
-    return makeError(line.trim(), undefined, extractFileRef(line));
+  // Next.js/vercel dev 런타임 에러: "⨯ Error: message" 또는 " Error: message"
+  if (/^[⨯✗×]?\s*(Error|TypeError|ReferenceError|RangeError):/.test(line.trim())) {
+    return makeError(line.replace(/^[⨯✗×]\s*/, "").trim(), undefined, extractFileRef(line));
+  }
+
+  // HTTP 5xx 에러: " GET /path 500 in Xms"
+  const httpErrorMatch = line.match(/^\s*(GET|POST|PUT|PATCH|DELETE)\s+(\S+)\s+(5\d\d)\s+in/);
+  if (httpErrorMatch) {
+    const [, method, path, status] = httpErrorMatch;
+    return makeError(`[${method}] ${path} — HTTP ${status}`);
   }
 
   return null;

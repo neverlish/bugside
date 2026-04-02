@@ -83,7 +83,12 @@ export async function runDev({ port }: DevOptions) {
       const lines = buffer.split("\n");
       buffer = lines.pop() ?? "";
 
-      for (const line of lines) {
+      for (const rawLine of lines) {
+        // ANSI 이스케이프 코드 + 캐리지 리턴 제거
+        const line = rawLine
+          .replace(/\x1b(\[[0-9;]*[A-Za-z]|[^[])/g, "")
+          .replace(/\r/g, "");
+
         // 컴파일/준비 성공 → 해당 source 에러 클리어
         if (isNextjsCompileSuccess(line)) {
           if (errors.some((e) => e.source === "nextjs")) {
