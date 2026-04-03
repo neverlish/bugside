@@ -2,8 +2,9 @@
   "name": "bugside",
   "version": "0.1.0",
   "description": "Next.js · Supabase · Vercel errors in one terminal pane",
+  "type": "module",
   "bin": {
-    "bugside": "./dist/cli.js"
+    "bugside": "dist/cli.js"
   },
   "main": "./dist/cli.js",
   "files": [
