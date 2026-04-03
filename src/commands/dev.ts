@@ -78,6 +78,18 @@ export async function runDev({ port }: DevOptions) {
     process.stdin.setEncoding("utf-8");
 
     let buffer = "";
+    // 스택 트레이스에서 파일 위치 추출: "at fn (app/page.tsx:12:5)"
+    function extractStackFile(line: string): { file: string; line: number } | undefined {
+      const m = line.match(/at .+\(([^)]+\.(?:tsx?|jsx?))(?::(\d+))?/);
+      if (!m) return undefined;
+      // 절대경로 → 상대경로
+      const file = m[1].replace(/^.*\/(?=(?:app|src|pages|components)\/)/,"");
+      return { file, line: m[2] ? parseInt(m[2], 10) : 0 };
+    }
+
+    // 최근 push된 에러에 파일 위치 추가 (스택 트레이스 다음 줄용)
+    let lastPushedIdx = -1;
+
     process.stdin.on("data", (chunk: string) => {
       buffer += chunk;
       const lines = buffer.split("\n");
@@ -89,10 +101,22 @@ export async function runDev({ port }: DevOptions) {
           .replace(/\x1b(\[[0-9;]*[A-Za-z]|[^[])/g, "")
           .replace(/\r/g, "");
 
+        // 스택 트레이스 줄 — 직전 에러에 파일 위치 보강
+        if (/^\s+at /.test(line) && lastPushedIdx >= 0 && !errors[lastPushedIdx]?.file) {
+          const loc = extractStackFile(line);
+          if (loc) {
+            errors[lastPushedIdx].file = loc.file;
+            errors[lastPushedIdx].line = loc.line;
+            rerender_();
+          }
+          continue;
+        }
+
         // 컴파일/준비 성공 → 해당 source 에러 클리어
         if (isNextjsCompileSuccess(line)) {
           if (errors.some((e) => e.source === "nextjs")) {
             errors.splice(0, errors.length, ...errors.filter((e) => e.source !== "nextjs"));
+            lastPushedIdx = -1;
             rerender_();
           }
           continue;
@@ -100,12 +124,18 @@ export async function runDev({ port }: DevOptions) {
         if (isVercelReady(line)) {
           if (errors.some((e) => e.source === "vercel")) {
             errors.splice(0, errors.length, ...errors.filter((e) => e.source !== "vercel"));
+            lastPushedIdx = -1;
             rerender_();
           }
           continue;
         }
         const err = parseNextjsLine(line) ?? parseVercelLine(line);
-        if (err) pushError(err);
+        if (err) {
+          pushError(err);
+          lastPushedIdx = errors.length - 1;
+        } else {
+          lastPushedIdx = -1;
+        }
       }
     });
 
