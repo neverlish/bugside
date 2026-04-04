@@ -1,10 +1,8 @@
-import { exec } from "child_process";
-import { existsSync } from "fs";
+import { exec, execSync } from "child_process";
 import { join } from "path";
 
 function which(cmd: string): boolean {
   try {
-    const { execSync } = require("child_process");
     execSync(`which ${cmd}`, { stdio: "ignore" });
     return true;
   } catch {
@@ -13,7 +11,6 @@ function which(cmd: string): boolean {
 }
 
 export function openInEditor(file: string, line?: number, cwd?: string) {
-  const loc = line ? `${file}:${line}` : file;
   const absPath = cwd && !file.startsWith("/") ? join(cwd, file) : file;
   const absLoc = line ? `${absPath}:${line}` : absPath;
 

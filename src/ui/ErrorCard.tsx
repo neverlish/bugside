@@ -30,7 +30,9 @@ export function ErrorCard({ error, selected }: { error: BugError; selected?: boo
   const label = SOURCE_LABEL[error.source];
 
   return (
-    <Box flexDirection="column" borderStyle="round" borderColor={selected ? "white" : color} paddingX={1} marginBottom={1}>
+    <Box gap={1} marginBottom={1}>
+      <Text color="cyan">{selected ? "▶" : " "}</Text>
+    <Box flexDirection="column" borderStyle="round" borderColor={selected ? "cyan" : color} paddingX={1} flexGrow={1}>
       {/* 헤더 행: [소스 배지] 메시지  시간 */}
       <Box gap={1}>
         <Text backgroundColor={bg} color="white" bold> {label} </Text>
@@ -45,6 +47,7 @@ export function ErrorCard({ error, selected }: { error: BugError; selected?: boo
       {error.file && (
         <Text color={color} dimColor>  → {error.file}{error.line ? `:${error.line}` : ""}</Text>
       )}
+    </Box>
     </Box>
   );
 }
