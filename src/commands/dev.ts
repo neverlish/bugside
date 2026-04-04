@@ -1,6 +1,8 @@
 import { render } from "ink";
 import React from "react";
 import { exec } from "child_process";
+import { openSync } from "fs";
+import tty from "tty";
 import { detectProject } from "../detect.js";
 import { parseNextjsLine, isNextjsCompileSuccess } from "../parsers/nextjs.js";
 import { parseVercelLine, isVercelReady } from "../parsers/vercel.js";
@@ -23,9 +25,22 @@ interface DevOptions {
   port: number;
 }
 
+function openTtyStdin(): tty.ReadStream | undefined {
+  // 파이프 모드에서도 키보드 입력을 받기 위해 /dev/tty 직접 열기
+  try {
+    if (process.platform === "win32") return undefined;
+    const fd = openSync("/dev/tty", "r+");
+    return new tty.ReadStream(fd);
+  } catch {
+    return undefined;
+  }
+}
+
 export async function runDev({ port }: DevOptions) {
   const cwd = process.cwd();
   const config = detectProject(cwd);
+  const isPiped = !process.stdin.isTTY;
+  const ttyStdin = isPiped ? openTtyStdin() : undefined;
 
   const errors: BugError[] = [];
 
@@ -46,12 +61,14 @@ export async function runDev({ port }: DevOptions) {
   const { rerender } = render(
     React.createElement(App, {
       config,
+      cwd,
       errors: [],
       onClear: () => {
         errors.length = 0;
         rerender_();
       },
-    })
+    }),
+    ttyStdin ? { stdin: ttyStdin } : undefined
   );
 
   function pushError(err: BugError) {
@@ -89,8 +106,6 @@ export async function runDev({ port }: DevOptions) {
     openBrowser(proxyUrl);
   }
 
-  // stdin 파이프 감지 — next dev 2>&1 | bugside 로 실행한 경우
-  const isPiped = !process.stdin.isTTY;
   // 파이프/standalone 모두 최대 10초 안에 fallback으로 열기
   setTimeout(openOnce, isPiped ? 10000 : 3000);
   if (isPiped) {
