@@ -7,6 +7,7 @@ import { parseVercelLine, isVercelReady } from "../parsers/vercel.js";
 import { startSupabaseProxy } from "../proxy.js";
 import { startBrowserProxy } from "../browser-proxy.js";
 import { startCollector } from "../collector.js";
+import { appendHistory } from "../history.js";
 import { App } from "../ui/App.js";
 import { BugError } from "../types.js";
 
@@ -33,6 +34,7 @@ export async function runDev({ port }: DevOptions) {
     rerender(
       React.createElement(App, {
         config,
+        cwd,
         errors: [...errors],
         onClear: () => {
           errors.length = 0;
@@ -59,6 +61,7 @@ export async function runDev({ port }: DevOptions) {
     if ((recentMessages.get(key) ?? 0) > now - 3000) return;
     recentMessages.set(key, now);
     errors.push(err);
+    appendHistory([err]);
     rerender_();
   }
 

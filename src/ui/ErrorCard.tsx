@@ -21,13 +21,13 @@ const SOURCE_LABEL: Record<ErrorSource, string> = {
   vercel: "Vercel",
 };
 
-export function ErrorCard({ error }: { error: BugError }) {
+export function ErrorCard({ error, selected }: { error: BugError; selected?: boolean }) {
   const color = SOURCE_COLOR[error.source];
   const bg = SOURCE_BG[error.source];
   const label = SOURCE_LABEL[error.source];
 
   return (
-    <Box flexDirection="column" borderStyle="round" borderColor={color} paddingX={1} marginBottom={1}>
+    <Box flexDirection="column" borderStyle="round" borderColor={selected ? "white" : color} paddingX={1} marginBottom={1}>
       {/* 헤더 행: [소스 배지] 메시지  시간 */}
       <Box gap={1}>
         <Text backgroundColor={bg} color="white" bold> {label} </Text>
