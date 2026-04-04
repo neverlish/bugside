@@ -1,5 +1,6 @@
 import { render } from "ink";
 import React from "react";
+import { exec } from "child_process";
 import { detectProject } from "../detect.js";
 import { parseNextjsLine, isNextjsCompileSuccess } from "../parsers/nextjs.js";
 import { parseVercelLine, isVercelReady } from "../parsers/vercel.js";
@@ -8,6 +9,14 @@ import { startBrowserProxy } from "../browser-proxy.js";
 import { startCollector } from "../collector.js";
 import { App } from "../ui/App.js";
 import { BugError } from "../types.js";
+
+function openBrowser(url: string) {
+  const cmd =
+    process.platform === "darwin" ? `open "${url}"` :
+    process.platform === "win32"  ? `start "${url}"` :
+                                    `xdg-open "${url}"`;
+  exec(cmd);
+}
 
 interface DevOptions {
   port: number;
@@ -72,8 +81,20 @@ export async function runDev({ port }: DevOptions) {
     startSupabaseProxy(config.supabaseUrl, pushError);
   }
 
+  const proxyUrl = `http://localhost:${port + 1}`;
+  let browserOpened = false;
+  function openOnce() {
+    if (browserOpened) return;
+    browserOpened = true;
+    openBrowser(proxyUrl);
+  }
+
   // stdin 파이프 감지 — next dev 2>&1 | bugside 로 실행한 경우
   const isPiped = !process.stdin.isTTY;
+  if (!isPiped) {
+    // standalone 모드: 3초 뒤 열기
+    setTimeout(openOnce, 3000);
+  }
   if (isPiped) {
     process.stdin.setEncoding("utf-8");
 
@@ -112,8 +133,9 @@ export async function runDev({ port }: DevOptions) {
           continue;
         }
 
-        // 컴파일/준비 성공 → 해당 source 에러 클리어
+        // 컴파일/준비 성공 → 해당 source 에러 클리어 + 브라우저 열기
         if (isNextjsCompileSuccess(line)) {
+          openOnce();
           if (errors.some((e) => e.source === "nextjs")) {
             errors.splice(0, errors.length, ...errors.filter((e) => e.source !== "nextjs"));
             lastPushedIdx = -1;
@@ -122,6 +144,7 @@ export async function runDev({ port }: DevOptions) {
           continue;
         }
         if (isVercelReady(line)) {
+          openOnce();
           if (errors.some((e) => e.source === "vercel")) {
             errors.splice(0, errors.length, ...errors.filter((e) => e.source !== "vercel"));
             lastPushedIdx = -1;
