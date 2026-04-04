@@ -1,6 +1,6 @@
 {
   "name": "bugside",
-  "version": "0.1.0",
+  "version": "0.1.3",
   "description": "Next.js · Supabase · Vercel errors in one terminal pane",
   "type": "module",
   "bin": {
