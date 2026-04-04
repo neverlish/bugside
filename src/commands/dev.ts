@@ -58,7 +58,7 @@ export async function runDev({ port }: DevOptions) {
   function pushError(err: BugError) {
     const key = `${err.source}:${err.message}`;
     const now = Date.now();
-    if ((recentMessages.get(key) ?? 0) > now - 3000) return;
+    if ((recentMessages.get(key) ?? 0) > now - 8000) return;
     recentMessages.set(key, now);
     errors.push(err);
     appendHistory([err]);

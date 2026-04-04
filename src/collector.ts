@@ -72,24 +72,28 @@ function parseBrowserError(payload: BrowserErrorPayload): BugError | null {
 
   // Supabase fetch 에러
   if (type === "supabase-error") {
+    const rawDetail = stack ?? "";
+    const detail = rawDetail.trimStart().startsWith("<") ? undefined : rawDetail.slice(0, 150) || undefined;
     return {
       id: randomId(),
       source: "supabase",
       timestamp: new Date(),
       message: message.slice(0, 200),
-      detail: stack ? stack.slice(0, 150) : undefined,
+      detail,
       resolved: false,
     };
   }
 
   // 일반 HTTP 에러 (API routes, 외부 fetch 등)
   if (type === "network-error") {
+    const rawDetail = stack ?? "";
+    const detail = rawDetail.trimStart().startsWith("<") ? undefined : rawDetail.slice(0, 150) || undefined;
     return {
       id: randomId(),
       source: "network",
       timestamp: new Date(),
       message: message.slice(0, 200),
-      detail: stack ? stack.slice(0, 150) : undefined,
+      detail,
       resolved: false,
     };
   }
