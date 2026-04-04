@@ -28,7 +28,6 @@ export async function runDev({ port }: DevOptions) {
   const config = detectProject(cwd);
 
   const errors: BugError[] = [];
-  const recentMessages = new Map<string, number>();
 
   function rerender_() {
     rerender(
@@ -57,9 +56,7 @@ export async function runDev({ port }: DevOptions) {
 
   function pushError(err: BugError) {
     const key = `${err.source}:${err.message}`;
-    const now = Date.now();
-    if ((recentMessages.get(key) ?? 0) > now - 8000) return;
-    recentMessages.set(key, now);
+    if (errors.some((e) => !e.resolved && `${e.source}:${e.message}` === key)) return;
     errors.push(err);
     appendHistory([err]);
     rerender_();
